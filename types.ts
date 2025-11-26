@@ -21,6 +21,7 @@ export interface Player extends Rect {
 export interface Obstacle extends Rect {
   id: string;
   name: string; // The specific pain point text
+  difficulty: number;
 }
 
 export interface Platform extends Rect {
@@ -29,4 +30,13 @@ export interface Platform extends Rect {
   role: string; // "SDR"
   color: string;
   isGap?: boolean; // If true, it's a pitfall
+}
+
+export interface SalesStage {
+  id: string;
+  title: string;
+  role: string;
+  color: string;
+  pains: string[]; // List of specific pains for this segment
+  difficulty: number; // 1 = Easy, 2 = Medium, 4 = Hard/Impossible
 }

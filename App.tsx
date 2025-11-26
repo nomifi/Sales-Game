@@ -4,7 +4,7 @@ import { GamePhase, Player, Platform, Obstacle } from './types';
 import { SALES_FLOW, GAME_SPEED, JUMP_FORCE, GRAVITY, BLOCK_WIDTH } from './constants';
 import Dashboard from './components/Dashboard';
 import { submitFlowFeedback } from './services/geminiService';
-import { Play, RotateCcw, CheckCircle, XCircle, Send, Loader, AlertTriangle } from 'lucide-react';
+import { Play, RotateCcw, CheckCircle, XCircle, Send, Loader, AlertTriangle, ArrowDown } from 'lucide-react';
 
 const CANVAS_HEIGHT = 400;
 const CANVAS_WIDTH = 800; // Conceptual width
@@ -71,26 +71,30 @@ const App: React.FC = () => {
     };
     state.current.platforms.push(platform);
 
-    // Chance to spawn obstacle (Pain Point)
-    // Don't spawn on the very first block
-    if (state.current.stageIndex > 0) {
-      const pain = stage.pains[Math.floor(Math.random() * stage.pains.length)];
-      const obsX = startX + 50 + Math.random() * (BLOCK_WIDTH - 100);
-      
-      // Special logic for RFP - Make it impossible to pass
-      const isImpossible = pain === 'RFP';
-      const obsHeight = isImpossible ? 280 : 40; // 280 is taller than max jump
-      const obsY = GROUND_Y - obsHeight;
+    // Spawn obstacle (Pain Point)
+    // In this structured version, we always spawn the specific pain associated with the block
+    const pain = stage.pains[0]; // Use the specific pain for this segment
+    const obsX = startX + 150 + Math.random() * (BLOCK_WIDTH - 250); // Centered a bit more
+    
+    // Height Calculation based on Difficulty
+    // Size 1 (Easy): 40px (Reduced from 50)
+    // Size 2 (Medium): 80px (Reduced from 100)
+    // Size 4 (Impossible): 280px (Still impossible)
+    let obsHeight = 40;
+    if (stage.difficulty === 2) obsHeight = 80;
+    if (stage.difficulty === 4) obsHeight = 280;
 
-      state.current.obstacles.push({
-        id: `obs-${state.current.stageIndex}`,
-        x: obsX,
-        y: obsY,
-        w: 30,
-        h: obsHeight,
-        name: pain
-      });
-    }
+    const obsY = GROUND_Y - obsHeight;
+
+    state.current.obstacles.push({
+      id: `obs-${state.current.stageIndex}`,
+      x: obsX,
+      y: obsY,
+      w: 40,
+      h: obsHeight,
+      name: pain,
+      difficulty: stage.difficulty
+    });
 
     state.current.nextSpawnX = startX + BLOCK_WIDTH + 10; // +10 for small gap visual
     state.current.stageIndex++;
@@ -106,11 +110,26 @@ const App: React.FC = () => {
       nextSpawnX: 0
     };
     
-    // Initial Spawn
-    spawnSegment(0);
-    spawnSegment(BLOCK_WIDTH);
-    spawnSegment(BLOCK_WIDTH * 2);
-    spawnSegment(BLOCK_WIDTH * 3);
+    // Initial Spawn with Safe Zone
+    // 800px safe zone / 2.5 speed = ~5 seconds of running before first block
+    const safeZoneWidth = 800;
+    
+    state.current.platforms.push({
+      id: 'warmup-zone',
+      x: 0,
+      y: GROUND_Y,
+      w: safeZoneWidth,
+      h: 100,
+      stageTitle: 'GET READY',
+      role: 'START',
+      color: 'bg-slate-700'
+    });
+    
+    state.current.nextSpawnX = safeZoneWidth;
+
+    spawnSegment(state.current.nextSpawnX);
+    spawnSegment(state.current.nextSpawnX);
+    spawnSegment(state.current.nextSpawnX);
     
     setScore(0);
     setFeedbackStatus(null);
@@ -295,23 +314,42 @@ const App: React.FC = () => {
             </div>
         ))}
 
-        {/* Obstacles */}
-        {state.current.obstacles.map(o => (
-            <div 
-                key={o.id}
-                className={`absolute rounded-sm flex items-center justify-center text-white font-bold text-center border-2 border-red-900 shadow-xl z-10 ${o.name === 'RFP' ? 'bg-red-800' : 'bg-red-500'}`}
-                style={{ 
-                    left: o.x, 
-                    bottom: 100, // Ground height
-                    width: o.w, 
-                    height: o.h 
-                }}
-            >
-                <span className={`leading-none transform -rotate-90 whitespace-nowrap ${o.name === 'RFP' ? 'text-lg text-red-200' : 'text-[10px]'}`}>
-                    {o.name}
-                </span>
-            </div>
-        ))}
+        {/* Obstacles with Labels */}
+        {state.current.obstacles.map(o => {
+            // Check if the obstacle is the massive RFP wall
+            const isMegaWall = o.difficulty === 4;
+            return (
+                <React.Fragment key={o.id}>
+                    {/* The Block */}
+                    <div 
+                        className={`absolute rounded-sm border-2 border-red-900 shadow-xl z-10 ${isMegaWall ? 'bg-red-800' : 'bg-red-500'}`}
+                        style={{ 
+                            left: o.x, 
+                            bottom: 100, // Ground height
+                            width: o.w, 
+                            height: o.h 
+                        }}
+                    />
+                    
+                    {/* The Label & Arrow */}
+                    <div
+                        className="absolute flex flex-col items-center z-20 pointer-events-none"
+                        style={{
+                            left: o.x + o.w / 2, 
+                            // If it's the mega wall, put the label inside near the top to prevent cutoff. 
+                            // Otherwise float it above.
+                            bottom: isMegaWall ? 100 + o.h - 80 : 100 + o.h + 10,
+                            transform: 'translateX(-50%)'
+                        }}
+                    >
+                        <span className="text-white font-bold text-[10px] md:text-xs uppercase whitespace-nowrap bg-slate-900/90 px-2 py-1 rounded mb-1 border border-red-500/50 shadow-sm z-30">
+                            {o.name}
+                        </span>
+                        <ArrowDown className={`text-red-500 w-6 h-6 animate-bounce ${isMegaWall ? 'text-white' : ''}`} />
+                    </div>
+                </React.Fragment>
+            );
+        })}
 
         {/* Player */}
         <div 
@@ -383,7 +421,7 @@ const App: React.FC = () => {
                     <>
                         <h2 className="text-2xl md:text-3xl font-arcade text-green-400 mb-4">PIPELINE REVIEW</h2>
                         <p className="text-slate-300 mb-6 max-w-lg text-center leading-relaxed">
-                            {currentStageTitle === 'Closing' 
+                            {currentStageTitle === 'Negotiation' 
                                 ? "That RFP wall was impossible, right?" 
                                 : "You've navigated the sales process."}
                             <br/>

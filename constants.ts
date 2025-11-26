@@ -1,84 +1,165 @@
 
+import { SalesStage } from './types';
+
 export const GAME_SPEED = 2.5;
-export const JUMP_FORCE = 14;
-export const GRAVITY = 0.6;
+export const JUMP_FORCE = 9.5; // Lower force but combined with low gravity = long floaty jump
+export const GRAVITY = 0.25;   // Very low gravity for "moon jump" feel
 export const BLOCK_WIDTH = 380;
 
-export interface SalesStage {
-  id: string;
-  title: string;
-  role: string;
-  color: string;
-  pains: string[];
-}
-
 export const SALES_FLOW: SalesStage[] = [
-  // --- SDR PHASE ---
+  // 1. Prospecting & Leadgen (3 blocks, Size 1)
   {
-    id: 'sdr-1',
+    id: 'prop-1',
     title: 'Prospecting',
     role: 'SDR',
     color: 'bg-yellow-500',
-    pains: ['Bad Data', 'Burnout', 'Junk MQLs']
+    pains: ['Identification'],
+    difficulty: 1
   },
   {
-    id: 'sdr-2',
-    title: 'Qualification',
+    id: 'prop-2',
+    title: 'Prospecting',
     role: 'SDR',
     color: 'bg-yellow-500',
-    pains: ['Ghosting', 'No Budget', 'Fatigue']
+    pains: ['ICP Match'],
+    difficulty: 1
   },
   {
-    id: 'sdr-3',
-    title: 'SDR-to-AE Handoff',
-    role: 'SDR/AE',
+    id: 'prop-3',
+    title: 'Prospecting',
+    role: 'SDR',
+    color: 'bg-yellow-500',
+    pains: ['Cold Outreach'],
+    difficulty: 1
+  },
+
+  // 2. Contact & Qualification (2 blocks, Size 1)
+  {
+    id: 'qual-1',
+    title: 'Qualification',
+    role: 'SDR',
     color: 'bg-yellow-600',
-    pains: ['Dropped Baton', 'Poor Context', 'Re-qualifying']
+    pains: ['Bounced'],
+    difficulty: 1
   },
-  // --- AE PHASE ---
   {
-    id: 'ae-1',
+    id: 'qual-2',
+    title: 'Qualification',
+    role: 'SDR',
+    color: 'bg-yellow-600',
+    pains: ['Ghosted'],
+    difficulty: 1
+  },
+
+  // 3. Handoff to AE (1 block, Size 2)
+  {
+    id: 'handoff-1',
+    title: 'SDR > AE Handoff',
+    role: 'SDR/AE',
+    color: 'bg-orange-400',
+    pains: ['Lead Disqualified'],
+    difficulty: 2
+  },
+
+  // 4. Discovery (2 blocks, Size 2)
+  {
+    id: 'disc-1',
     title: 'Discovery',
     role: 'AE',
     color: 'bg-orange-500',
-    pains: ['Happy Ears', 'Interrogation', 'Surface Level']
+    pains: ['Unclear Budget'],
+    difficulty: 2
   },
   {
-    id: 'ae-2',
-    title: 'Solution/Demo',
+    id: 'disc-2',
+    title: 'Discovery',
     role: 'AE',
     color: 'bg-orange-500',
-    pains: ['Generic Demo', 'Feature Dump', 'No ROI']
+    pains: ['No Decision Power'],
+    difficulty: 2
   },
+
+  // 5. Demo (2 blocks, Size 2)
   {
-    id: 'ae-3',
-    title: 'Negotiation',
+    id: 'demo-1',
+    title: 'Solution Demo',
     role: 'AE',
     color: 'bg-orange-600',
-    pains: ['Procurement', 'Legal Stalls', 'Discounting']
-  },
-  // --- CS PHASE ---
-  {
-    id: 'cs-1',
-    title: 'Closing',
-    role: 'AE/Finance',
-    color: 'bg-green-600',
-    pains: ['RFP']
+    pains: ['Product Workaround'],
+    difficulty: 2
   },
   {
-    id: 'cs-2',
+    id: 'demo-2',
+    title: 'Solution Demo',
+    role: 'AE',
+    color: 'bg-orange-600',
+    pains: ['Generic Demo'],
+    difficulty: 2
+  },
+
+  // 6. Objection Handling (1 block, Size 2)
+  {
+    id: 'obj-1',
+    title: 'Objection Handling',
+    role: 'AE',
+    color: 'bg-red-500',
+    pains: ['6 Stakeholders'],
+    difficulty: 2
+  },
+
+  // 7. Negotiation and Close (1 block, Size 4 - IMPOSSIBLE)
+  {
+    id: 'neg-1',
+    title: 'Negotiation',
+    role: 'AE',
+    color: 'bg-red-600',
+    pains: ['RFP'],
+    difficulty: 4
+  },
+
+  // 8. Onboarding (2 blocks, Size 2)
+  {
+    id: 'onb-1',
     title: 'Onboarding',
     role: 'CS',
     color: 'bg-blue-500',
-    pains: ['Shelf-ware', 'Slow Ramp', 'Buyer Remorse']
+    pains: ['Slow Ramp'],
+    difficulty: 2
   },
   {
-    id: 'cs-3',
+    id: 'onb-2',
+    title: 'Onboarding',
+    role: 'CS',
+    color: 'bg-blue-500',
+    pains: ['Buyer Remorse'],
+    difficulty: 2
+  },
+
+  // 9. Renewal (3 blocks, Size 2)
+  {
+    id: 'ren-1',
     title: 'Renewal',
     role: 'CS',
     color: 'bg-blue-600',
-    pains: ['Churn Risk', 'No Upsell', 'Competitor']
-  }
+    pains: ['Churn Risk'],
+    difficulty: 2
+  },
+  {
+    id: 'ren-2',
+    title: 'Renewal',
+    role: 'CS',
+    color: 'bg-blue-600',
+    pains: ['No Upsell'],
+    difficulty: 2
+  },
+  {
+    id: 'ren-3',
+    title: 'Renewal',
+    role: 'CS',
+    color: 'bg-blue-600',
+    pains: ['Competitor'],
+    difficulty: 2
+  },
 ];
 
 export const SYSTEM_PROMPT_TEMPLATE = `
