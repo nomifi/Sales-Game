@@ -1,10 +1,9 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GamePhase, Player, Platform, Obstacle, Decoration } from './types';
-import { SALES_FLOW, GAME_SPEED, JUMP_FORCE, GRAVITY, BLOCK_WIDTH, SUPABASE_URL } from './constants';
+import { SALES_FLOW, GAME_SPEED, JUMP_FORCE, GRAVITY, BLOCK_WIDTH } from './constants';
 import Dashboard from './components/Dashboard';
-import { submitFlowFeedback } from './services/geminiService';
-import { saveFeedbackToDb } from './services/db';
-import { Play, RotateCcw, CheckCircle, XCircle, Send, Loader, AlertTriangle, Database, Share2 } from 'lucide-react';
+import { Play, RotateCcw, Share2 } from 'lucide-react';
 
 const CANVAS_HEIGHT = 400;
 const CANVAS_WIDTH = 800; // Conceptual width for spawning logic
@@ -23,12 +22,6 @@ const App: React.FC = () => {
   const [phase, setPhase] = useState<GamePhase>(GamePhase.START);
   const [currentStageTitle, setCurrentStageTitle] = useState("Start");
   const [score, setScore] = useState(0);
-  
-  // Feedback UI State
-  const [feedbackStatus, setFeedbackStatus] = useState<'Correct' | 'Incorrect' | null>(null);
-  const [feedbackText, setFeedbackText] = useState("");
-  const [aiResponse, setAiResponse] = useState("");
-  const [isAiLoading, setIsAiLoading] = useState(false);
 
   // --- REFS (Mutable Game State) ---
   const requestRef = useRef<number>(null);
@@ -203,9 +196,6 @@ const App: React.FC = () => {
     spawnSegment(state.current.nextSpawnX);
     
     setScore(0);
-    setFeedbackStatus(null);
-    setFeedbackText("");
-    setAiResponse("");
     setPhase(GamePhase.PLAYING);
   };
 
@@ -357,18 +347,6 @@ const App: React.FC = () => {
   }, [phase, update]);
 
   // --- HANDLERS ---
-  const handleFeedbackSubmit = async () => {
-      setIsAiLoading(true);
-      
-      // 1. Send to Gemini for intelligent response
-      const response = await submitFlowFeedback(feedbackStatus!, feedbackText);
-      setAiResponse(response);
-      
-      // 2. Save to Database (Supabase)
-      await saveFeedbackToDb(feedbackStatus!, feedbackText, currentStageTitle);
-      
-      setIsAiLoading(false);
-  };
   
   const handleLinkedInShare = async (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -389,13 +367,6 @@ const App: React.FC = () => {
         <h1 className="text-2xl md:text-5xl font-arcade text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400 drop-shadow-md text-center px-4">
             PIPELINE RUNNER
         </h1>
-        {/* Helper text for DB Setup */}
-        {!SUPABASE_URL && (
-            <div className="mt-2 text-[10px] md:text-xs text-yellow-500 bg-yellow-900/30 px-3 py-1 rounded border border-yellow-700/50 flex items-center gap-1">
-                <AlertTriangle size={12} />
-                <span>DB Not Configured</span>
-            </div>
-        )}
       </div>
       
       {/* GAME CONTAINER */}
@@ -492,6 +463,11 @@ const App: React.FC = () => {
                     <div className="w-full h-full opacity-20" 
                          style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #000 10px, #000 20px)' }} 
                     />
+                    
+                    {/* Obstacle Name (Floating above) */}
+                    <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-xs md:text-xl font-bold text-white bg-red-950/80 px-3 py-1.5 rounded-md backdrop-blur-sm border border-red-800/50 shadow-sm z-20">
+                        {o.stageTitle}
+                    </div>
                 </div>
             );
         })}
@@ -510,9 +486,8 @@ const App: React.FC = () => {
                  {/* Face */}
                  <div className="absolute top-2 right-2 w-2 h-2 bg-black rounded-full"></div>
                  <div className="absolute top-5 right-2 w-4 h-1 bg-black rounded-full"></div>
-                 {/* Briefcase */}
-                 <div className="absolute top-6 -left-2 w-5 h-4 bg-amber-800 border border-amber-900 rounded-sm"></div>
-                 <div className="absolute top-5 -left-1 w-1 h-2 bg-amber-900 rounded-full"></div>
+                 {/* Briefcase Emoji */}
+                 <div className="absolute top-5 -left-3 text-xl md:text-2xl filter drop-shadow-sm transform -rotate-12">💼</div>
             </div>
         </div>
 
@@ -555,12 +530,16 @@ const App: React.FC = () => {
                         <RotateCcw size={20} /> TRY AGAIN
                     </button>
                     
+                    <p className="text-red-200 text-xs md:text-sm font-semibold text-center mt-2">
+                        Share if those struggles look real
+                    </p>
+                    
                     <button 
                         onClick={handleLinkedInShare}
                         className="px-6 py-3 bg-[#0077b5] hover:bg-[#004182] border border-blue-400/30 text-white text-xs md:text-sm font-bold rounded shadow-lg flex items-center justify-center gap-2 transition-colors uppercase"
                     >
                         <Share2 size={16} /> 
-                        Share where your struggles are
+                        Join the discussion on LinkedIn
                     </button>
                 </div>
             </div>
@@ -568,84 +547,28 @@ const App: React.FC = () => {
 
         {phase === GamePhase.VICTORY && (
             <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center text-white z-50 p-4 md:p-6 overflow-y-auto">
-                {!aiResponse ? (
-                    <>
-                        <h2 className="text-xl md:text-3xl font-arcade text-green-400 mb-4 mt-8 md:mt-0">PIPELINE REVIEW</h2>
-                        <p className="text-slate-300 mb-6 max-w-lg text-center leading-relaxed text-sm md:text-base">
-                            {currentStageTitle.includes('RFP') 
-                                ? "That RFP wall was impossible, right?" 
-                                : "You've navigated the sales process."}
-                            <br/>
-                            Now, I need your expert opinion.
-                        </p>
-                        
-                        <div className="bg-slate-800 p-4 md:p-6 rounded-xl border border-slate-700 w-full max-w-lg mb-6 shadow-xl">
-                            <h3 className="text-lg md:text-xl font-bold text-white mb-4">Share if those struggles look real</h3>
-                            
-                            <button 
-                                onClick={handleLinkedInShare}
-                                className="w-full mb-6 px-4 py-3 bg-[#0077b5] hover:bg-[#004182] border border-blue-400/30 text-white font-bold rounded shadow-lg flex items-center justify-center gap-2 transition-colors uppercase text-sm md:text-base"
-                            >
-                                <Share2 size={20} /> 
-                                Share on LinkedIn
-                            </button>
-
-                            <p className="text-slate-400 text-sm mb-3 font-semibold text-center border-t border-slate-700 pt-4">Or help us improve the game:</p>
-                            
-                            {!feedbackStatus ? (
-                                <div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-center">
-                                    <button 
-                                        onClick={() => { setFeedbackStatus('Correct'); setFeedbackText('It looks accurate.'); }}
-                                        className="flex-1 py-3 px-4 bg-green-600/20 border border-green-500 hover:bg-green-600/40 rounded flex flex-row md:flex-col items-center justify-center gap-2 transition-colors"
-                                    >
-                                        <CheckCircle className="text-green-500" />
-                                        <span className="font-bold text-sm md:text-base">Yes, looks right</span>
-                                    </button>
-                                    <button 
-                                        onClick={() => setFeedbackStatus('Incorrect')}
-                                        className="flex-1 py-3 px-4 bg-red-600/20 border border-red-500 hover:bg-red-600/40 rounded flex flex-row md:flex-col items-center justify-center gap-2 transition-colors"
-                                    >
-                                        <XCircle className="text-red-500" />
-                                        <span className="font-bold text-sm md:text-base">No, something's off</span>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    {feedbackStatus === 'Incorrect' && (
-                                        <div className="mb-4">
-                                            <label className="block text-xs md:text-sm text-slate-400 mb-2">What stage or pain point is missing?</label>
-                                            <textarea 
-                                                className="w-full bg-slate-900 border border-slate-600 rounded p-3 text-white focus:outline-none focus:border-blue-500 text-sm"
-                                                rows={3}
-                                                placeholder="e.g., We usually have a Proof of Concept stage before Negotiation..."
-                                                value={feedbackText}
-                                                onChange={(e) => setFeedbackText(e.target.value)}
-                                            />
-                                        </div>
-                                    )}
-                                    <button 
-                                        onClick={handleFeedbackSubmit}
-                                        disabled={isAiLoading}
-                                        className="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded font-bold flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
-                                    >
-                                        {isAiLoading ? <Loader className="animate-spin" /> : <Send size={18} />}
-                                        SUBMIT FEEDBACK
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </>
-                ) : (
-                    <div className="bg-slate-800 p-6 md:p-8 rounded-xl border-2 border-green-500/50 w-full max-w-lg text-center animate-in zoom-in duration-300 shadow-2xl">
-                         <div className="w-12 h-12 md:w-16 md:h-16 bg-green-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-green-400">
-                             <CheckCircle size={28} />
-                         </div>
-                         <h3 className="text-lg md:text-xl font-bold text-white mb-4">Thanks for the insight!</h3>
-                         <p className="text-slate-300 italic mb-6 text-sm md:text-base">"{aiResponse}"</p>
-                         <p className="text-[10px] md:text-xs text-slate-500">Data saved to secure DB.</p>
-                         <button onClick={resetGame} className="text-sm text-slate-500 hover:text-white underline mt-4">Play Again</button>
-                    </div>
-                )}
+                <h2 className="text-xl md:text-3xl font-arcade text-green-400 mb-4 mt-8 md:mt-0">PIPELINE REVIEW</h2>
+                <p className="text-slate-300 mb-6 max-w-lg text-center leading-relaxed text-sm md:text-base">
+                    {currentStageTitle.includes('RFP') 
+                        ? "That RFP wall was impossible, right?" 
+                        : "You've navigated the sales process."}
+                    <br/>
+                    Now, I need your expert opinion.
+                </p>
+                
+                <div className="bg-slate-800 p-4 md:p-6 rounded-xl border border-slate-700 w-full max-w-lg mb-6 shadow-xl">
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-4">Share if those struggles look real</h3>
+                    
+                    <button 
+                        onClick={handleLinkedInShare}
+                        className="w-full mb-2 px-4 py-3 bg-[#0077b5] hover:bg-[#004182] border border-blue-400/30 text-white font-bold rounded shadow-lg flex items-center justify-center gap-2 transition-colors uppercase text-sm md:text-base"
+                    >
+                        <Share2 size={20} /> 
+                        Join the discussion on LinkedIn
+                    </button>
+                </div>
+                
+                <button onClick={resetGame} className="text-sm text-slate-500 hover:text-white underline mt-4">Play Again</button>
             </div>
         )}
 
