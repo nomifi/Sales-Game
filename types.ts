@@ -20,23 +20,33 @@ export interface Player extends Rect {
 
 export interface Obstacle extends Rect {
   id: string;
-  name: string; // The specific pain point text
-  difficulty: number;
+  hLevel: number; // 0 or 1
+  wLevel: number; // 0 or 1
+  stageTitle: string;
 }
 
 export interface Platform extends Rect {
   id: string;
-  stageTitle: string; // "Prospecting"
-  role: string; // "SDR"
+  stageTitle: string; // "Wrong ICP"
   color: string;
   isGap?: boolean; // If true, it's a pitfall
+}
+
+export interface Decoration {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  subText?: string;
+  type: 'sign';
+  opacity: number; // For animation
+  scale: number;   // For animation
 }
 
 export interface SalesStage {
   id: string;
   title: string;
-  role: string;
   color: string;
-  pains: string[]; // List of specific pains for this segment
-  difficulty: number; // 1 = Easy, 2 = Medium, 4 = Hard/Impossible
+  hLevel: number; // 0 = Short, 1 = Tall
+  wLevel: number; // 0 = Narrow, 1 = Wide
 }
